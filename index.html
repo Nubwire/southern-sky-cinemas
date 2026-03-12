@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Southern Sky Cinemas</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: #06060f; color: #e8e0d0; font-family: 'Crimson Text', Georgia, serif; min-height: 100vh; }
+    #root { min-height: 100vh; }
+    @keyframes twinkle   { from { opacity: 0.1; } to { opacity: 0.7; } }
+    @keyframes fadeUp    { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn    { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin      { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar       { width: 6px; }
+    ::-webkit-scrollbar-track { background: #06060f; }
+    ::-webkit-scrollbar-thumb { background: #1e2a4a; border-radius: 3px; }
+    .movie-card:hover  { transform: translateY(-6px) !important; box-shadow: 0 20px 60px rgba(212,168,71,0.12) !important; border-color: rgba(212,168,71,0.25) !important; }
+    .movie-card:hover .card-overlay { opacity: 1 !important; }
+    .session-pill:hover { background: #1e2a4a !important; border-color: #d4a847 !important; color: #d4a847 !important; transform: scale(1.04); }
+    .btn-red:hover  { background: linear-gradient(135deg,#cc2200,#ff3300) !important; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(204,34,0,0.35); }
+    .btn-gold:hover { background: linear-gradient(135deg,#d4a847,#f0c040) !important; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212,168,71,0.35); }
+    .btn-outline:hover { background: rgba(212,168,71,0.08) !important; }
+    .nav-link:hover  { color: #d4a847 !important; border-bottom-color: #d4a847 !important; }
+    .admin-link:hover { background: #1a1a2e; color: #d4a847 !important; }
+    input:focus, select:focus { border-color: #d4a847 !important; box-shadow: 0 0 0 2px rgba(212,168,71,0.15); outline: none; }
+    .seat-btn:hover:not(:disabled) { transform: scale(1.15); z-index: 1; position: relative; }
+    .fade-up { animation: fadeUp 0.4s ease both; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useCallback, useEffect, useRef } = React;
+
+    // ─── DATA ────────────────────────────────────────────────────────────────
+
+    const CINEMAS = [
+      { id:"dubbo",    name:"Southern Sky Dubbo",    address:"120 Macquarie St, Dubbo NSW 2830",   screens:4 },
+      { id:"orange",   name:"Southern Sky Orange",   address:"45 Summer St, Orange NSW 2800",      screens:3 },
+      { id:"bathurst", name:"Southern Sky Bathurst", address:"67 William St, Bathurst NSW 2795",   screens:2 },
+    ];
+
+    const MOVIES = [
+      { id:"m1", title:"Starfall",           rating:"M",     runtime:128, genre:"Sci-Fi / Thriller",
+        poster:"https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=400&h=560&fit=crop&auto=format",
+        description:"When a dormant satellite network begins raining debris on Earth's southern hemisphere, a lone astrophysicist must race against time to avert catastrophe.",
+        release_type:"new_release",  tag:"NEW RELEASE" },
+      { id:"m2", title:"The Quiet Country",  rating:"PG",    runtime:105, genre:"Drama",
+        poster:"https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&h=560&fit=crop&auto=format",
+        description:"A multigenerational story of an Australian farming family navigating drought, loss, and the unexpected grace that binds them to their land.",
+        release_type:"standard",     tag:"NOW SHOWING" },
+      { id:"m3", title:"Mirage Protocol",    rating:"MA15+", runtime:142, genre:"Action / Espionage",
+        poster:"https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=560&fit=crop&auto=format",
+        description:"A field operative goes off-grid when her own agency marks her for elimination. Trust no one. Question everything.",
+        release_type:"new_release",  tag:"NEW RELEASE" },
+      { id:"m4", title:"Luminara",           rating:"G",     runtime:92,  genre:"Animation / Family",
+        poster:"https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=400&h=560&fit=crop&auto=format",
+        description:"An enchanting animated tale of a young girl who discovers a hidden world of bioluminescent creatures beneath her grandmother's coastal farm.",
+        release_type:"standard",     tag:"NOW SHOWING" },
+      { id:"m5", title:"Dark Meridian",      rating:"R18+",  runtime:115, genre:"Horror",
+        poster:"https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=560&fit=crop&auto=format",
+        description:"A remote outback property. A family in crisis. Something ancient has been waiting beneath the red earth.",
+        release_type:"special_event", tag:"SPECIAL EVENT" },
+      { id:"m6", title:"The Last Harbour",   rating:"M",     runtime:138, genre:"Romance / Drama",
+        poster:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=560&fit=crop&auto=format",
+        description:"Two strangers stranded in a remote fishing village during a cyclone find something neither expected — a reason to stay.",
+        release_type:"standard",     tag:"NOW SHOWING" },
+    ];
+
+    const TODAY = "2026-03-13";
+    const SESSIONS = [
+      { id:"s1",  movie_id:"m1", cinema_id:"dubbo",    screen:1, date:TODAY, time:"10:30", type:"matinee", avail:82 },
+      { id:"s2",  movie_id:"m1", cinema_id:"dubbo",    screen:1, date:TODAY, time:"13:45", type:"matinee", avail:60 },
+      { id:"s3",  movie_id:"m1", cinema_id:"dubbo",    screen:1, date:TODAY, time:"18:30", type:"evening", avail:24 },
+      { id:"s4",  movie_id:"m1", cinema_id:"dubbo",    screen:1, date:TODAY, time:"21:00", type:"late",    avail:95 },
+      { id:"s5",  movie_id:"m1", cinema_id:"orange",   screen:2, date:TODAY, time:"11:00", type:"matinee", avail:50 },
+      { id:"s6",  movie_id:"m1", cinema_id:"orange",   screen:2, date:TODAY, time:"19:00", type:"evening", avail:8  },
+      { id:"s7",  movie_id:"m2", cinema_id:"dubbo",    screen:2, date:TODAY, time:"11:00", type:"matinee", avail:70 },
+      { id:"s8",  movie_id:"m2", cinema_id:"dubbo",    screen:2, date:TODAY, time:"14:30", type:"matinee", avail:45 },
+      { id:"s9",  movie_id:"m2", cinema_id:"bathurst", screen:1, date:TODAY, time:"17:00", type:"evening", avail:30 },
+      { id:"s10", movie_id:"m3", cinema_id:"dubbo",    screen:3, date:TODAY, time:"12:00", type:"matinee", avail:100},
+      { id:"s11", movie_id:"m3", cinema_id:"orange",   screen:1, date:TODAY, time:"20:15", type:"evening", avail:15 },
+      { id:"s12", movie_id:"m4", cinema_id:"dubbo",    screen:4, date:TODAY, time:"10:00", type:"matinee", avail:90 },
+      { id:"s13", movie_id:"m4", cinema_id:"bathurst", screen:2, date:TODAY, time:"13:00", type:"matinee", avail:55 },
+      { id:"s14", movie_id:"m5", cinema_id:"dubbo",    screen:1, date:TODAY, time:"22:00", type:"late",    avail:40 },
+      { id:"s15", movie_id:"m6", cinema_id:"orange",   screen:3, date:TODAY, time:"16:00", type:"evening", avail:65 },
+      { id:"s16", movie_id:"m6", cinema_id:"bathurst", screen:1, date:TODAY, time:"19:30", type:"evening", avail:28 },
+    ];
+
+    const BASE_PRICES = { Adult:18.00, Child:11.00, Concession:13.50, Senior:13.50, Family:48.00 };
+
+    const TAKEN_SEATS = ["B5","B6","C3","C4","C7","D8","D9","E2","E10","F5","F6"];
+    const BLOCKED_SEATS = ["A1","A2","A11","A12","H1","H2","H11","H12"];
+    const ROWS = "ABCDEFGH".split("");
+    const COLS = 12;
+
+    const ADMIN = { user:"admin", pass:"southernsky2026" };
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────
+
+    const calcPrice = (type, sess, movie) => {
+      const day = new Date(sess.date + "T12:00:00").getDay();
+      let p = BASE_PRICES[type] || 0;
+      const mods = [];
+      if (day === 2)                           { p *= 0.5; mods.push("½ Price Tue"); }
+      if (movie.release_type==="new_release")  { p += 2.00; mods.push("+$2 New Release"); }
+      if (sess.type==="evening")               { p += 1.50; mods.push("+$1.50 Eve"); }
+      if (sess.type==="late")                  { p += 1.00; mods.push("+$1 Late"); }
+      if (movie.release_type==="special_event"){ p += 4.00; mods.push("+$4 Special"); }
+      return { price: Math.round(p*100)/100, mods };
+    };
+
+    const fmt  = n => `$${Number(n).toFixed(2)}`;
+    const fmtT = t => { const [h,m]=t.split(":"); const hr=+h; return `${hr>12?hr-12:hr}:${m} ${hr>=12?"PM":"AM"}`; };
+    const fmtD = d => new Date(d+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"});
+    const genRef = () => "SSC-"+Math.random().toString(36).toUpperCase().slice(2,8);
+
+    const tagColor = rt => rt==="special_event"?"#9b59b6": rt==="new_release"?"#c89b20":"#3a7a4a";
+    const availColor = n => n>20?"#3a6ab0": n>5?"#9a7a10":"#9a3030";
+    const availBg    = n => n>20?"#0d1a3a": n>5?"#1a1200":"#1a0505";
+
+    // ─── SMALL COMPONENTS ────────────────────────────────────────────────────
+
+    const Badge = ({children, color="#d4a847"}) => (
+      <span style={{background:color+"22",border:`1px solid ${color}55`,color,fontSize:10,fontWeight:700,
+        letterSpacing:2,padding:"2px 8px",borderRadius:3,textTransform:"uppercase",whiteSpace:"nowrap"}}>
+        {children}
+      </span>
+    );
+
+    const Btn = ({children,onClick,style={},className="",disabled=false}) => (
+      <button onClick={onClick} disabled={disabled} className={className}
+        style={{border:"none",cursor:disabled?"not-allowed":"pointer",fontFamily:"inherit",
+          transition:"all 0.2s",opacity:disabled?0.55:1,...style}}>
+        {children}
+      </button>
+    );
+
+    const Progress = ({step, total=5}) => (
+      <div style={{display:"flex",gap:6,marginBottom:24}}>
+        {Array.from({length:total}).map((_,i)=>(
+          <div key={i} style={{flex:1,height:3,borderRadius:2,
+            background:i<step?"#d4a847":"#1e2a4a",transition:"background 0.3s"}}/>
+        ))}
+      </div>
+    );
+
+    const StarField = () => {
+      const stars = useRef(Array.from({length:70}).map(()=>({
+        top:Math.random()*100, left:Math.random()*100,
+        size:Math.random()>0.8?2:1, dur:2+Math.random()*4, delay:Math.random()*4, op:0.1+Math.random()*0.5
+      })));
+      return (
+        <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+          {stars.current.map((s,i)=>(
+            <div key={i} style={{position:"absolute",width:s.size,height:s.size,background:"#fff",
+              borderRadius:"50%",top:`${s.top}%`,left:`${s.left}%`,
+              animation:`twinkle ${s.dur}s ${s.delay}s infinite alternate`,opacity:s.op}}/>
+          ))}
+        </div>
+      );
+    };
+
+    const Toast = ({msg, type}) => (
+      <div style={{position:"fixed",top:74,right:20,zIndex:9999,animation:"fadeIn 0.3s ease",
+        background:type==="warn"?"#1a1000":"#081508",
+        border:`1px solid ${type==="warn"?"#b8900a":"#3a7a3a"}`,
+        color:type==="warn"?"#c8a030":"#5ab55a",
+        borderRadius:6,padding:"11px 18px",fontSize:14,boxShadow:"0 8px 32px #00000070"}}>
+        {type==="warn"?"⚠ ":type==="error"?"✕ ":"✓ "}{msg}
+      </div>
+    );
+
+    const Panel = ({children, style={}}) => (
+      <div style={{background:"#0d0d22",border:"1px solid #1e2a4a",borderRadius:8,padding:24,marginBottom:16,...style}}>
+        {children}
+      </div>
+    );
+
+    // ─── MAIN APP ────────────────────────────────────────────────────────────
+
+    function App() {
+      const [view,         setView]         = useState("home");
+      const [selMovie,     setSelMovie]     = useState(null);
+      const [selSession,   setSelSession]   = useState(null);
+      const [selCinema,    setSelCinema]    = useState("dubbo");
+      const [selDate,      setSelDate]      = useState(TODAY);
+      const [seats,        setSeats]        = useState([]);
+      const [tickets,      setTickets]      = useState({Adult:0,Child:0,Concession:0,Senior:0,Family:0});
+      const [booking,      setBooking]      = useState(null);
+      const [adminAuth,    setAdminAuth]    = useState(false);
+      const [adminTab,     setAdminTab]     = useState("dashboard");
+      const [toast,        setToast]        = useState(null);
+      const [search,       setSearch]       = useState("");
+      const [genre,        setGenre]        = useState("all");
+
+      const notify = (msg, type="success") => {
+        setToast({msg,type});
+        setTimeout(()=>setToast(null), 3200);
+      };
+
+      const totalTix  = Object.values(tickets).reduce((a,b)=>a+b,0);
+      const totalAmt  = selSession && selMovie
+        ? Object.entries(tickets).reduce((s,[t,q])=>s+q*calcPrice(t,selSession,selMovie).price, 0)
+        : 0;
+
+      const movie   = MOVIES.find(m=>m.id===selMovie);
+      const cinema  = CINEMAS.find(c=>c.id==(selSession?.cinema_id||selCinema));
+
+      const goHome = () => {
+        setView("home"); setSelMovie(null); setSelSession(null);
+        setSeats([]); setTickets({Adult:0,Child:0,Concession:0,Senior:0,Family:0});
+        setBooking(null);
+      };
+
+      const pickSession = (sess, movieId) => {
+        setSelMovie(movieId); setSelSession(sess);
+        setSeats([]); setTickets({Adult:0,Child:0,Concession:0,Senior:0,Family:0});
+        setView("seats");
+      };
+
+      const confirmPay = () => {
+        const ref = genRef();
+        setBooking({ ref, movie, session:selSession,
+          cinema:CINEMAS.find(c=>c.id===selSession.cinema_id),
+          tickets, seats, total:totalAmt });
+        setView("confirmation");
+      };
+
+      const cinSessions = (movieId) =>
+        SESSIONS.filter(s=>s.movie_id===movieId && s.cinema_id===selCinema && s.date===selDate);
+
+      const filteredMovies = MOVIES.filter(m=>{
+        const q = search.toLowerCase();
+        const mQ = !q || m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q);
+        const mG = genre==="all" || m.genre.toLowerCase().includes(genre);
+        return mQ && mG;
+      });
+
+      // shared styles
+      const S = {
+        container:  {maxWidth:1180,margin:"0 auto",padding:"0 20px"},
+        h1gold:     {fontFamily:"'Playfair Display',Georgia,serif",color:"#d4a847",textTransform:"uppercase",letterSpacing:5,textShadow:"0 0 60px #d4a84730"},
+        h2:         {fontFamily:"'Playfair Display',Georgia,serif",color:"#d4a847",fontSize:26,marginBottom:4},
+        h3:         {fontFamily:"'Playfair Display',Georgia,serif",color:"#e8e0d0",fontSize:19,marginBottom:12},
+        label:      {fontSize:11,color:"#5a6a85",letterSpacing:1.5,textTransform:"uppercase",display:"block",marginBottom:5},
+        input:      {background:"#08081a",border:"1px solid #2a3a6a",borderRadius:6,color:"#e8e0d0",padding:"10px 14px",fontSize:14,width:"100%",fontFamily:"inherit"},
+        select:     {background:"#08081a",border:"1px solid #2a3a6a",borderRadius:6,color:"#e8e0d0",padding:"10px 14px",fontSize:14,fontFamily:"inherit"},
+        btnRed:     {background:"linear-gradient(135deg,#8b1a1a,#cc2200)",color:"#fff",padding:"12px 26px",borderRadius:6,fontSize:13,fontWeight:700,letterSpacing:2,textTransform:"uppercase"},
+        btnGold:    {background:"linear-gradient(135deg,#b8860b,#d4a847)",color:"#0a0a1a",padding:"12px 26px",borderRadius:6,fontSize:13,fontWeight:700,letterSpacing:2,textTransform:"uppercase"},
+        btnOutline: {background:"transparent",color:"#d4a847",border:"2px solid #d4a847",padding:"10px 22px",borderRadius:6,fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"},
+        divider:    {border:"none",borderTop:"1px solid #1e2a4a",margin:"18px 0"},
+      };
+
+      // ── NAV ──
+      const Nav = () => (
+        <nav style={{background:"linear-gradient(180deg,#0a0a1a,#06060f)",borderBottom:"1px solid #1a1a3a",
+          padding:"0 20px",display:"flex",alignItems:"center",gap:20,height:62,
+          position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 20px #00000060"}}>
+          <div onClick={goHome} style={{...S.h1gold,fontSize:17,cursor:"pointer",flexShrink:0}}>★ Southern Sky</div>
+          <div style={{flex:1}}/>
+          {[["home","Home"],["home","Sessions"]].map(([v,l])=>(
+            <span key={l} className="nav-link" onClick={()=>setView("home")}
+              style={{color:"#6a7a95",fontSize:12,letterSpacing:1.5,textTransform:"uppercase",
+                cursor:"pointer",padding:"4px 0",borderBottom:"2px solid transparent",transition:"all 0.2s"}}>
+              {l}
+            </span>
+          ))}
+          <span className="nav-link" onClick={()=>setView("admin")}
+            style={{color:"#6a7a95",fontSize:12,letterSpacing:1.5,textTransform:"uppercase",
+              cursor:"pointer",padding:"4px 0",borderBottom:"2px solid transparent",transition:"all 0.2s"}}>
+            Admin
+          </span>
+          <Btn className="btn-red" style={S.btnRed} onClick={goHome}>Buy Tickets</Btn>
+        </nav>
+      );
+
+      // ── FOOTER ──
+      const Footer = () => (
+        <footer style={{borderTop:"1px solid #1a1a3a",padding:"32px 20px",textAlign:"center",marginTop:60}}>
+          <div style={{...S.h1gold,fontSize:16,marginBottom:8}}>★ SOUTHERN SKY CINEMAS ★</div>
+          <p style={{fontSize:13,color:"#3a4a65"}}>Dubbo · Orange · Bathurst · Coming Soon</p>
+          <p style={{fontSize:11,color:"#252535",marginTop:10}}>© 2026 Southern Sky Cinemas. All rights reserved.</p>
+        </footer>
+      );
+
+      // ── HOME ──
+      const HomeView = () => (
+        <div className="fade-up">
+          <StarField/>
+          {/* Hero */}
+          <div style={{background:"linear-gradient(160deg,#090916,#0f0f28,#090916)",padding:"56px 20px 36px",
+            textAlign:"center",borderBottom:"1px solid #1a1a3a",position:"relative",zIndex:1}}>
+            <div style={{fontSize:11,letterSpacing:6,color:"#4a5a75",marginBottom:14,textTransform:"uppercase"}}>★ &nbsp; Big Screen Magic Under the Southern Sky &nbsp; ★</div>
+            <h1 style={{...S.h1gold,fontSize:window.innerWidth<600?32:50,marginBottom:8}}>Now Showing</h1>
+            <p style={{color:"#6a7a95",fontStyle:"italic",fontSize:17,marginBottom:28}}>Select your cinema to see today's sessions</p>
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+              {CINEMAS.map(c=>(
+                <Btn key={c.id} className={selCinema===c.id?"btn-gold":"btn-outline"}
+                  style={selCinema===c.id?S.btnGold:S.btnOutline}
+                  onClick={()=>setSelCinema(c.id)}>
+                  {c.name.replace("Southern Sky ","")}
+                </Btn>
+              ))}
+            </div>
+          </div>
+
+          <div style={{...S.container,position:"relative",zIndex:1}}>
+            {/* Filters */}
+            <div style={{padding:"24px 0 8px",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+              <input style={{...S.input,flex:"1 1 180px",maxWidth:280}} placeholder="Search movies or genres…"
+                value={search} onChange={e=>setSearch(e.target.value)}/>
+              <select style={{...S.select,flex:"0 0 auto"}} value={genre} onChange={e=>setGenre(e.target.value)}>
+                <option value="all">All Genres</option>
+                {["sci-fi","drama","action","animation","horror","romance"].map(g=>(
+                  <option key={g} value={g}>{g.charAt(0).toUpperCase()+g.slice(1)}</option>
+                ))}
+              </select>
+              <input type="date" style={{...S.input,flex:"0 0 auto",width:"auto"}}
+                value={selDate} onChange={e=>setSelDate(e.target.value)}/>
+            </div>
+
+            {/* Grid */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:22,padding:"16px 0 48px"}}>
+              {filteredMovies.map(m=>{
+                const sessions = cinSessions(m.id);
+                return (
+                  <div key={m.id} className="movie-card" style={{background:"#0d0d22",border:"1px solid #1e2a4a",
+                    borderRadius:8,overflow:"hidden",cursor:"pointer",transition:"all 0.25s",position:"relative"}}
+                    onClick={()=>{setSelMovie(m.id);setView("movie");}}>
+                    <div style={{position:"relative",overflow:"hidden",height:310}}>
+                      <img src={m.poster} alt={m.title}
+                        style={{width:"100%",height:"100%",objectFit:"cover",display:"block",transition:"transform 0.4s"}}
+                        onError={e=>{e.target.style.background="#0d0d22";e.target.style.height="100%";}}/>
+                      <div className="card-overlay" style={{position:"absolute",inset:0,
+                        background:"linear-gradient(0deg,#06060f 0%,transparent 55%)",opacity:0,transition:"opacity 0.3s"}}>
+                        <div style={{position:"absolute",bottom:14,left:14,right:14}}>
+                          <p style={{fontSize:12,color:"#c0b8a8",lineHeight:1.5,margin:0}}>{m.description.slice(0,110)}…</p>
+                        </div>
+                      </div>
+                      <div style={{position:"absolute",top:10,left:10,display:"flex",gap:5}}>
+                        <Badge color={tagColor(m.release_type)}>{m.tag}</Badge>
+                      </div>
+                      <div style={{position:"absolute",top:10,right:10}}>
+                        <Badge color="#4a5a75">{m.rating}</Badge>
+                      </div>
+                    </div>
+                    <div style={{padding:14}}>
+                      <h3 style={{...S.h3,fontSize:16,marginBottom:3}}>{m.title}</h3>
+                      <p style={{fontSize:12,color:"#5a6a85",marginBottom:10}}>{m.genre} · {m.runtime} min</p>
+                      {sessions.length>0 ? (
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          {sessions.slice(0,3).map(s=>(
+                            <button key={s.id} className="session-pill"
+                              style={{padding:"8px 12px",borderRadius:5,border:`1px solid ${availColor(s.avail)}80`,
+                                background:availBg(s.avail),color:availColor(s.avail),cursor:"pointer",
+                                transition:"all 0.18s",textAlign:"center",fontFamily:"inherit"}}
+                              onClick={e=>{e.stopPropagation();pickSession(s,m.id);}}>
+                              <div style={{fontWeight:700,fontSize:13}}>{fmtT(s.time)}</div>
+                              <div style={{fontSize:10,opacity:0.75,marginTop:2}}>{s.avail} left</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{fontSize:11,color:"#3a4a65",fontStyle:"italic"}}>No sessions at this location today</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+
+      // ── MOVIE DETAIL ──
+      const MovieView = () => {
+        if (!movie) return null;
+        const allSess = SESSIONS.filter(s=>s.movie_id===movie.id && s.date===selDate);
+        return (
+          <div style={{...S.container,padding:"24px 20px 60px"}}>
+            <Btn className="btn-outline" style={{...S.btnOutline,marginBottom:20,padding:"7px 16px",fontSize:11}}
+              onClick={()=>setView("home")}>← Back</Btn>
+            <div style={{display:"grid",gridTemplateColumns:"min(290px,100%) 1fr",gap:32,alignItems:"start"}}>
+              <img src={movie.poster} alt={movie.title}
+                style={{width:"100%",borderRadius:8,border:"1px solid #1e2a4a",display:"block"}}/>
+              <div>
+                <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                  <Badge color={tagColor(movie.release_type)}>{movie.tag}</Badge>
+                  <Badge color="#4a5a75">{movie.rating}</Badge>
+                </div>
+                <h1 style={{...S.h1gold,fontSize:34,marginBottom:6}}>{movie.title}</h1>
+                <p style={{color:"#5a6a85",marginBottom:16}}>{movie.genre} · {movie.runtime} min</p>
+                <p style={{color:"#b8b0a0",lineHeight:1.85,fontSize:16,marginBottom:24}}>{movie.description}</p>
+                <hr style={S.divider}/>
+                <h3 style={S.h3}>Select Location & Session</h3>
+                <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+                  {CINEMAS.map(c=>(
+                    <Btn key={c.id} className={selCinema===c.id?"btn-gold":"btn-outline"}
+                      style={selCinema===c.id?S.btnGold:S.btnOutline}
+                      onClick={()=>setSelCinema(c.id)}>
+                      {c.name.replace("Southern Sky ","")}
+                    </Btn>
+                  ))}
+                </div>
+                {CINEMAS.filter(c=>c.id===selCinema).map(cin=>{
+                  const cinSess = allSess.filter(s=>s.cinema_id===cin.id);
+                  return (
+                    <Panel key={cin.id}>
+                      <p style={{fontSize:13,color:"#5a6a85",marginBottom:14}}>{cin.address}</p>
+                      {cinSess.length===0
+                        ? <p style={{color:"#3a4a65",fontStyle:"italic",fontSize:14}}>No sessions at this location on this date.</p>
+                        : <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                            {cinSess.map(s=>(
+                              <button key={s.id} className="session-pill"
+                                style={{padding:"14px 18px",borderRadius:6,border:`1px solid ${availColor(s.avail)}80`,
+                                  background:availBg(s.avail),color:availColor(s.avail),cursor:"pointer",
+                                  transition:"all 0.18s",textAlign:"center",fontFamily:"inherit"}}
+                                onClick={()=>pickSession(s,movie.id)}>
+                                <div style={{fontWeight:700,fontSize:16}}>{fmtT(s.time)}</div>
+                                <div style={{fontSize:11,opacity:0.7,textTransform:"uppercase",letterSpacing:1,marginTop:3}}>{s.type}</div>
+                                <div style={{fontSize:11,opacity:0.6,marginTop:2}}>{s.avail} seats left</div>
+                              </button>
+                            ))}
+                          </div>
+                      }
+                    </Panel>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // ── SEATS ──
+      const SeatsView = () => {
+        if (!movie||!selSession) return null;
+        const cin = CINEMAS.find(c=>c.id===selSession.cinema_id);
+        const seatStatus = id => {
+          if (BLOCKED_SEATS.includes(id)) return "blocked";
+          if (TAKEN_SEATS.includes(id))   return "taken";
+          if (seats.includes(id))         return "selected";
+          return "free";
+        };
+        const toggleSeat = id => {
+          if (seatStatus(id)==="free") {
+            if (seats.includes(id)) setSeats(seats.filter(s=>s!==id));
+            else if (seats.length<totalTix) setSeats([...seats,id]);
+            else notify("Remove a seat first","warn");
+          }
+        };
+        const colors = {blocked:"#10102a",taken:"#2a1010",selected:"#d4a847",free:"#1a2040"};
+        const borders = {blocked:"#15153a",taken:"#4a1515",selected:"#f0c040",free:"#2a3a6a"};
+
+        return (
+          <div style={{...S.container,padding:"24px 20px 60px"}}>
+            <Btn className="btn-outline" style={{...S.btnOutline,marginBottom:16,padding:"7px 16px",fontSize:11}}
+              onClick={()=>setView("movie")}>← Back</Btn>
+            <Progress step={2}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr min(320px,100%)",gap:20,alignItems:"start"}}>
+              <Panel>
+                <h2 style={{...S.h2,fontSize:20,marginBottom:4}}>{movie.title}</h2>
+                <p style={{color:"#5a6a85",fontSize:13,marginBottom:20}}>
+                  {cin?.name} · Screen {selSession.screen} · {fmtT(selSession.time)} · {fmtD(selSession.date)}
+                </p>
+                {/* Ticket selector */}
+                <h3 style={{...S.h3,fontSize:15,marginBottom:12}}>Select Tickets</h3>
+                {Object.keys(BASE_PRICES).map(type=>{
+                  const {price,mods} = calcPrice(type,selSession,movie);
+                  return (
+                    <div key={type} style={{display:"flex",alignItems:"center",gap:12,
+                      padding:"10px 0",borderBottom:"1px solid #131328"}}>
+                      <div style={{flex:1}}>
+                        <span style={{color:"#e8e0d0",fontWeight:600}}>{type}</span>
+                        {mods.length>0&&<span style={{fontSize:10,color:"#5a6a85",marginLeft:8}}>{mods.join(" · ")}</span>}
+                      </div>
+                      <span style={{color:"#d4a847",fontWeight:700,minWidth:52,textAlign:"right"}}>{fmt(price)}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <button onClick={()=>setTickets(t=>({...t,[type]:Math.max(0,t[type]-1)}))}
+                          style={{width:28,height:28,borderRadius:4,background:"#1a2040",border:"1px solid #2a3a6a",
+                            color:"#e8e0d0",cursor:"pointer",fontSize:16,lineHeight:1}}>−</button>
+                        <span style={{minWidth:18,textAlign:"center",fontWeight:700,color:"#e8e0d0"}}>{tickets[type]}</span>
+                        <button onClick={()=>setTickets(t=>({...t,[type]:t[type]+1}))}
+                          style={{width:28,height:28,borderRadius:4,background:"#1a2040",border:"1px solid #2a3a6a",
+                            color:"#e8e0d0",cursor:"pointer",fontSize:16,lineHeight:1}}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Seat map */}
+                {totalTix>0&&(
+                  <div style={{marginTop:24}}>
+                    <h3 style={{...S.h3,fontSize:15}}>Choose Seats ({seats.length}/{totalTix})</h3>
+                    <div style={{background:"#06060f",borderRadius:8,padding:"20px 12px",textAlign:"center"}}>
+                      <div style={{background:"linear-gradient(90deg,transparent,#d4a847,transparent)",height:3,
+                        borderRadius:2,maxWidth:260,margin:"0 auto 20px"}}/>
+                      <div style={{fontSize:9,color:"#2a3a55",letterSpacing:4,marginBottom:14,textTransform:"uppercase"}}>Screen</div>
+                      {ROWS.map(row=>(
+                        <div key={row} style={{display:"flex",justifyContent:"center",alignItems:"center"}}>
+                          <span style={{width:16,fontSize:9,color:"#2a3a55",textAlign:"right",marginRight:3}}>{row}</span>
+                          {Array.from({length:COLS}).map((_,i)=>{
+                            const id=`${row}${i+1}`;
+                            const st=seatStatus(id);
+                            const sel=seats.includes(id);
+                            return (
+                              <button key={id} className={st==="free"||sel?"seat-btn":""} title={id}
+                                disabled={st==="blocked"||st==="taken"}
+                                onClick={()=>toggleSeat(id)}
+                                style={{width:24,height:19,margin:"2px",borderRadius:3,
+                                  background:sel?"#d4a847":colors[st],
+                                  border:`1px solid ${sel?"#f0c040":borders[st]}`,
+                                  cursor:st==="blocked"||st==="taken"?"not-allowed":"pointer",
+                                  transition:"all 0.12s",fontSize:0,
+                                  transform:sel?"scale(1.12)":"scale(1)"}}>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
+                      <div style={{display:"flex",gap:16,justifyContent:"center",marginTop:14,flexWrap:"wrap"}}>
+                        {[["free","#1a2040","Available"],["selected","#d4a847","Selected"],["taken","#2a1010","Taken"]].map(([k,c,l])=>(
+                          <div key={k} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"#4a5a75"}}>
+                            <div style={{width:14,height:12,background:c,borderRadius:2}}/>
+                            {l}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Panel>
+
+              {/* Summary sidebar */}
+              <div style={{position:"sticky",top:72}}>
+                <Panel style={{border:"1px solid #1e2a4a"}}>
+                  <h3 style={S.h3}>Order Summary</h3>
+                  <div style={{fontSize:14,color:"#8a9ab5",marginBottom:3}}>{movie.title}</div>
+                  <div style={{fontSize:12,color:"#4a5a75",marginBottom:3}}>{fmtT(selSession.time)} · {fmtD(selSession.date)}</div>
+                  <div style={{fontSize:12,color:"#4a5a75",marginBottom:14}}>{cin?.name}</div>
+                  <hr style={S.divider}/>
+                  {Object.entries(tickets).filter(([,q])=>q>0).map(([t,q])=>{
+                    const {price}=calcPrice(t,selSession,movie);
+                    return <div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#a8a098",marginBottom:5}}>
+                      <span>{q}× {t}</span><span>{fmt(price*q)}</span>
+                    </div>;
+                  })}
+                  {seats.length>0&&<div style={{fontSize:12,color:"#4a5a75",marginTop:6}}>Seats: {seats.join(", ")}</div>}
+                  <hr style={S.divider}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:20,fontWeight:700,color:"#d4a847",marginBottom:18}}>
+                    <span>Total</span><span>{fmt(totalAmt)}</span>
+                  </div>
+                  <Btn className="btn-red" style={{...S.btnRed,width:"100%",textAlign:"center"}}
+                    disabled={totalTix===0||seats.length<totalTix}
+                    onClick={()=>setView("checkout")}>
+                    {totalTix===0?"Select Tickets First":seats.length<totalTix?`Select ${totalTix-seats.length} More Seat(s)`:"Checkout →"}
+                  </Btn>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // ── CHECKOUT ──
+      const CheckoutView = () => {
+        const cin = CINEMAS.find(c=>c.id===selSession.cinema_id);
+        const [form, setForm] = useState({name:"",email:"",card:"",expiry:"",cvv:""});
+        const [busy, setBusy] = useState(false);
+        const f = (k,v) => setForm(p=>({...p,[k]:v}));
+        const pay = () => {
+          if (!form.name||!form.email||!form.card||!form.expiry||!form.cvv)
+            { notify("Please fill all fields","warn"); return; }
+          setBusy(true);
+          setTimeout(()=>{ setBusy(false); confirmPay(); }, 2000);
+        };
+        return (
+          <div style={{...S.container,padding:"24px 20px 60px"}}>
+            <Btn className="btn-outline" style={{...S.btnOutline,marginBottom:16,padding:"7px 16px",fontSize:11}}
+              onClick={()=>setView("seats")}>← Back</Btn>
+            <Progress step={4}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr min(340px,100%)",gap:20,alignItems:"start"}}>
+              <div>
+                <Panel>
+                  <h2 style={{...S.h2,marginBottom:18}}>Your Details</h2>
+                  <label style={S.label}>Full Name</label>
+                  <input style={{...S.input,marginBottom:14}} placeholder="Jane Smith"
+                    value={form.name} onChange={e=>f("name",e.target.value)}/>
+                  <label style={S.label}>Email Address</label>
+                  <input style={{...S.input,marginBottom:22}} placeholder="jane@example.com" type="email"
+                    value={form.email} onChange={e=>f("email",e.target.value)}/>
+
+                  <h2 style={{...S.h2,marginBottom:18}}>Payment</h2>
+                  <div style={{background:"#06060f",border:"1px solid #1e2a4a",borderRadius:8,padding:18,marginBottom:16}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+                      <span style={{background:"#0a1828",border:"1px solid #1a3a5a",borderRadius:4,
+                        padding:"3px 8px",fontSize:10,color:"#4a8abf",fontWeight:700,letterSpacing:1}}>STRIPE SECURE</span>
+                      <span style={{fontSize:11,color:"#2a3a55"}}>256-bit SSL · No card data stored</span>
+                    </div>
+                    <label style={S.label}>Card Number</label>
+                    <input style={{...S.input,letterSpacing:3,marginBottom:12}} placeholder="4242 4242 4242 4242"
+                      value={form.card} maxLength={19}
+                      onChange={e=>f("card",e.target.value.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim())}/>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                      <div><label style={S.label}>Expiry</label>
+                        <input style={S.input} placeholder="MM/YY" value={form.expiry} maxLength={5}
+                          onChange={e=>f("expiry",e.target.value)}/></div>
+                      <div><label style={S.label}>CVV</label>
+                        <input style={S.input} placeholder="123" value={form.cvv} maxLength={3}
+                          onChange={e=>f("cvv",e.target.value.replace(/\D/g,""))}/></div>
+                    </div>
+                  </div>
+                  <Btn className="btn-red" style={{...S.btnRed,width:"100%",textAlign:"center",padding:15,fontSize:15}}
+                    onClick={pay} disabled={busy}>
+                    {busy?"Processing…":`Pay ${fmt(totalAmt)} Securely`}
+                  </Btn>
+                  <p style={{fontSize:11,color:"#2a3a55",textAlign:"center",marginTop:10}}>
+                    By completing purchase you agree to our Terms. Tickets non-refundable within 24 hours of session.
+                  </p>
+                </Panel>
+              </div>
+              <div style={{position:"sticky",top:72}}>
+                <Panel>
+                  <h3 style={S.h3}>Order Summary</h3>
+                  <img src={movie.poster} style={{width:"100%",borderRadius:6,marginBottom:12}}/>
+                  <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:17,color:"#e8e0d0",fontWeight:700,marginBottom:4}}>{movie.title}</div>
+                  <div style={{fontSize:12,color:"#4a5a75",marginBottom:2}}>{fmtD(selSession.date)}</div>
+                  <div style={{fontSize:12,color:"#4a5a75",marginBottom:2}}>{fmtT(selSession.time)} · Screen {selSession.screen}</div>
+                  <div style={{fontSize:12,color:"#4a5a75",marginBottom:12}}>{cin?.name}</div>
+                  <div style={{fontSize:12,color:"#3a4a65",marginBottom:10}}>Seats: {seats.join(", ")}</div>
+                  <hr style={S.divider}/>
+                  {Object.entries(tickets).filter(([,q])=>q>0).map(([t,q])=>{
+                    const {price}=calcPrice(t,selSession,movie);
+                    return <div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#a8a098",marginBottom:4}}>
+                      <span>{q}× {t}</span><span>{fmt(price*q)}</span>
+                    </div>;
+                  })}
+                  <hr style={S.divider}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:20,fontWeight:700,color:"#d4a847"}}>
+                    <span>Total</span><span>{fmt(totalAmt)}</span>
+                  </div>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // ── CONFIRMATION ──
+      const ConfirmationView = () => {
+        if (!booking) return null;
+        return (
+          <div style={{...S.container,textAlign:"center",padding:"56px 20px"}}>
+            <div style={{fontSize:48,marginBottom:16}}>🎬</div>
+            <h1 style={{...S.h1gold,fontSize:34,marginBottom:8}}>Booking Confirmed!</h1>
+            <p style={{color:"#6a7a95",marginBottom:36,fontSize:16}}>Check your email for your tickets and QR code.</p>
+            <div style={{maxWidth:460,margin:"0 auto"}}>
+              <Panel style={{border:"1px solid rgba(212,168,71,0.25)"}}>
+                <div style={{fontSize:11,letterSpacing:3,color:"#5a6a85",textTransform:"uppercase",marginBottom:8}}>Booking Reference</div>
+                <div style={{fontSize:30,fontWeight:900,color:"#d4a847",fontFamily:"'Playfair Display',Georgia,serif",
+                  letterSpacing:5,marginBottom:24}}>{booking.ref}</div>
+                {/* QR placeholder */}
+                <div style={{width:140,height:140,background:"#08081a",border:"2px solid rgba(212,168,71,0.2)",
+                  borderRadius:8,margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:6}}>
+                  <div style={{fontSize:28}}>▦</div>
+                  <div style={{fontSize:9,color:"#3a4a65",letterSpacing:2}}>QR CODE</div>
+                  <div style={{fontSize:8,color:"#2a3a55"}}>{booking.ref}</div>
+                </div>
+                <div style={{textAlign:"left",borderTop:"1px solid #1a1a3a",paddingTop:16}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                    {[["Movie",booking.movie.title],["Cinema",booking.cinema.name],
+                      ["Date",fmtD(booking.session.date)],["Time",fmtT(booking.session.time)],
+                      ["Screen",`Screen ${booking.session.screen}`],["Seats",booking.seats.join(", ")]].map(([k,v])=>(
+                      <div key={k}>
+                        <div style={{fontSize:10,color:"#4a5a75",letterSpacing:1.5,textTransform:"uppercase",marginBottom:3}}>{k}</div>
+                        <div style={{fontSize:13,color:"#e8e0d0",fontWeight:600}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <hr style={S.divider}/>
+                  {Object.entries(booking.tickets).filter(([,q])=>q>0).map(([t,q])=>{
+                    const {price}=calcPrice(t,booking.session,booking.movie);
+                    return <div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#a8a098",marginBottom:4}}>
+                      <span>{q}× {t}</span><span>{fmt(price*q)}</span>
+                    </div>;
+                  })}
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:18,fontWeight:700,color:"#d4a847",marginTop:8}}>
+                    <span>Total Paid</span><span>{fmt(booking.total)}</span>
+                  </div>
+                </div>
+              </Panel>
+              <Btn className="btn-gold" style={{...S.btnGold,marginTop:8}} onClick={goHome}>Browse More Movies</Btn>
+            </div>
+          </div>
+        );
+      };
+
+      // ── ADMIN ──
+      const AdminView = () => {
+        const [u,setU]=useState(""); const [p,setP]=useState(""); const [err,setErr]=useState("");
+        const login = () => {
+          if(u===ADMIN.user&&p===ADMIN.pass){setAdminAuth(true);setErr("");}
+          else setErr("Invalid credentials");
+        };
+        if (!adminAuth) return (
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",minHeight:"75vh"}}>
+            <Panel style={{width:340,border:"1px solid rgba(212,168,71,0.2)"}}>
+              <div style={{textAlign:"center",marginBottom:22}}>
+                <div style={{fontSize:11,letterSpacing:4,color:"#4a5a75",textTransform:"uppercase",marginBottom:8}}>Southern Sky Cinemas</div>
+                <h2 style={{...S.h2,fontSize:22}}>Admin Portal</h2>
+              </div>
+              <label style={S.label}>Username</label>
+              <input style={{...S.input,marginBottom:12}} value={u} onChange={e=>setU(e.target.value)} placeholder="admin"/>
+              <label style={S.label}>Password</label>
+              <input style={{...S.input,marginBottom:16}} type="password" value={p}
+                onChange={e=>setP(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="••••••••"/>
+              {err&&<p style={{color:"#cc4444",fontSize:13,marginBottom:12}}>⚠ {err}</p>}
+              <Btn className="btn-gold" style={{...S.btnGold,width:"100%",textAlign:"center"}} onClick={login}>Sign In</Btn>
+              <p style={{fontSize:11,color:"#2a3a55",textAlign:"center",marginTop:10}}>Demo: admin / southernsky2026</p>
+            </Panel>
+          </div>
+        );
+
+        const tabs = ["dashboard","movies","sessions","pricing","cinemas","reports"];
+        const [pBase, setPBase] = useState({...BASE_PRICES});
+
+        return (
+          <div style={{display:"flex",minHeight:"calc(100vh - 62px)"}}>
+            {/* Sidebar */}
+            <div style={{width:200,background:"#08081a",borderRight:"1px solid #1a1a3a",flexShrink:0}}>
+              <div style={{padding:"16px 20px 12px",borderBottom:"1px solid #1a1a3a",marginBottom:4}}>
+                <div style={{fontSize:10,letterSpacing:2,color:"#2a3a55",textTransform:"uppercase"}}>Admin Panel</div>
+              </div>
+              {tabs.map(t=>(
+                <div key={t} className={adminTab!==t?"admin-link":""} onClick={()=>setAdminTab(t)}
+                  style={{padding:"11px 20px",color:adminTab===t?"#d4a847":"#5a6a85",
+                    background:adminTab===t?"#1a1a2e":"transparent",cursor:"pointer",fontSize:13,
+                    letterSpacing:0.5,transition:"all 0.15s",textTransform:"capitalize",
+                    borderLeft:adminTab===t?"3px solid #d4a847":"3px solid transparent"}}>
+                  {t}
+                </div>
+              ))}
+              <div style={{padding:"20px",borderTop:"1px solid #1a1a3a",marginTop:20}}>
+                <Btn className="btn-outline" style={{...S.btnOutline,width:"100%",textAlign:"center",padding:"7px",fontSize:11}}
+                  onClick={()=>setAdminAuth(false)}>Sign Out</Btn>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{flex:1,padding:28,overflowY:"auto"}}>
+              {adminTab==="dashboard"&&(
+                <div>
+                  <h2 style={S.h2}>Dashboard</h2>
+                  <p style={{color:"#4a5a75",marginBottom:22}}>Welcome back. Here's your cinema overview.</p>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:28}}>
+                    {[["1,247","Total Bookings","This month"],["$38,421","Revenue","This month"],["73%","Avg. Occupancy","All screens"],[MOVIES.length,"Active Movies","Now showing"]].map(([v,l,s])=>(
+                      <Panel key={l} style={{textAlign:"center",padding:18}}>
+                        <div style={{fontSize:28,fontWeight:700,color:"#d4a847",fontFamily:"'Playfair Display',Georgia,serif"}}>{v}</div>
+                        <div style={{fontSize:13,color:"#e8e0d0",marginTop:2}}>{l}</div>
+                        <div style={{fontSize:11,color:"#4a5a75"}}>{s}</div>
+                      </Panel>
+                    ))}
+                  </div>
+                  <Panel>
+                    <h3 style={S.h3}>Recent Bookings</h3>
+                    {[["SSC-X4F2A","Starfall","Dubbo","7:00 PM","$54.00"],["SSC-B7G3K","Luminara","Orange","2:30 PM","$48.00"],["SSC-C2H9P","Mirage Protocol","Bathurst","8:15 PM","$36.00"]].map(([r,m,c,t,a])=>(
+                      <div key={r} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #131328"}}>
+                        <div>
+                          <div style={{fontSize:13,color:"#e8e0d0",fontWeight:600}}>{r}</div>
+                          <div style={{fontSize:11,color:"#4a5a75"}}>{m} · {c} · {t}</div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:13,color:"#d4a847",fontWeight:700}}>{a}</div>
+                          <Badge color="#3a7a4a">confirmed</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </Panel>
+                </div>
+              )}
+
+              {adminTab==="movies"&&(
+                <div>
+                  <h2 style={S.h2}>Movies & CSV Import</h2>
+                  <Panel>
+                    <h3 style={S.h3}>Upload Movie CSV</h3>
+                    <div style={{border:"2px dashed #2a3a6a",borderRadius:8,padding:36,textAlign:"center",
+                      marginBottom:14,cursor:"pointer"}} onClick={()=>document.getElementById("csv-up").click()}>
+                      <div style={{fontSize:36,marginBottom:8}}>📄</div>
+                      <p style={{color:"#5a6a85"}}>Drop CSV here or click to browse</p>
+                      <p style={{fontSize:11,color:"#2a3a55",marginTop:6}}>Columns: movie_id, title, rating, runtime, genre, poster_url, description, release_type</p>
+                      <input id="csv-up" type="file" accept=".csv" style={{display:"none"}}
+                        onChange={e=>e.target.files[0]&&notify(`Loaded: ${e.target.files[0].name}`)}/>
+                    </div>
+                    <Btn className="btn-gold" style={S.btnGold} onClick={()=>notify("Movies updated from CSV")}>Import CSV</Btn>
+                  </Panel>
+                  <Panel>
+                    <h3 style={S.h3}>Current Movies ({MOVIES.length})</h3>
+                    {MOVIES.map(m=>(
+                      <div key={m.id} style={{display:"flex",gap:12,alignItems:"center",padding:"9px 0",borderBottom:"1px solid #131328"}}>
+                        <img src={m.poster} style={{width:36,height:50,objectFit:"cover",borderRadius:3}}/>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,color:"#e8e0d0",fontWeight:600}}>{m.title}</div>
+                          <div style={{fontSize:11,color:"#4a5a75"}}>{m.rating} · {m.runtime}m · {m.genre}</div>
+                        </div>
+                        <Badge color={tagColor(m.release_type)}>{m.release_type}</Badge>
+                        <Btn className="btn-outline" style={{...S.btnOutline,padding:"4px 12px",fontSize:11}}
+                          onClick={()=>notify(`Editing ${m.title}`)}>Edit</Btn>
+                      </div>
+                    ))}
+                  </Panel>
+                </div>
+              )}
+
+              {adminTab==="sessions"&&(
+                <div>
+                  <h2 style={S.h2}>Sessions</h2>
+                  <Panel>
+                    <h3 style={S.h3}>Upcoming Sessions</h3>
+                    {SESSIONS.map(s=>{
+                      const m=MOVIES.find(x=>x.id===s.movie_id);
+                      const c=CINEMAS.find(x=>x.id===s.cinema_id);
+                      return (
+                        <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #131328"}}>
+                          <div>
+                            <div style={{fontSize:13,color:"#e8e0d0",fontWeight:600}}>{m?.title}</div>
+                            <div style={{fontSize:11,color:"#4a5a75"}}>{c?.name.replace("Southern Sky ","")} · Screen {s.screen} · {fmtT(s.time)}</div>
+                          </div>
+                          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                            <span style={{fontSize:12,color:s.avail<20?"#9a3030":"#3a7a3a"}}>{s.avail} seats</span>
+                            <Btn className="btn-outline" style={{...S.btnOutline,padding:"3px 10px",fontSize:11}}
+                              onClick={()=>notify("Edit session")}>Edit</Btn>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </Panel>
+                </div>
+              )}
+
+              {adminTab==="pricing"&&(
+                <div>
+                  <h2 style={S.h2}>Pricing Rules</h2>
+                  <Panel>
+                    <h3 style={S.h3}>Base Ticket Prices</h3>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:12,marginBottom:18}}>
+                      {Object.entries(pBase).map(([t,p])=>(
+                        <div key={t}>
+                          <label style={S.label}>{t}</label>
+                          <input style={S.input} type="number" step="0.50" min="0" value={p}
+                            onChange={e=>setPBase(b=>({...b,[t]:+e.target.value}))}/>
+                        </div>
+                      ))}
+                    </div>
+                    <h3 style={{...S.h3,marginTop:8}}>Active Modifiers</h3>
+                    {[["Half Price Tuesday","day === 2","×0.5"],["New Release Surcharge","release_type === 'new_release'","+$2.00"],["Evening Session","sessionTime === 'evening'","+$1.50"],["Special Event","special_event === true","+$4.00"]].map(([l,c,v])=>(
+                      <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                        padding:"10px 0",borderBottom:"1px solid #131328"}}>
+                        <div>
+                          <div style={{fontSize:13,color:"#e8e0d0",fontWeight:600}}>{l}</div>
+                          <div style={{fontSize:11,color:"#4a5a75",fontFamily:"monospace",marginTop:2}}>if {c}</div>
+                        </div>
+                        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                          <span style={{color:"#d4a847",fontWeight:700}}>{v}</span>
+                          <Badge color="#3a7a4a">Active</Badge>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{marginTop:18}}>
+                      <Btn className="btn-gold" style={S.btnGold} onClick={()=>notify("Pricing rules saved!")}>Save Pricing Rules</Btn>
+                    </div>
+                  </Panel>
+                </div>
+              )}
+
+              {adminTab==="cinemas"&&(
+                <div>
+                  <h2 style={S.h2}>Cinema Locations</h2>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16}}>
+                    {CINEMAS.map(c=>(
+                      <Panel key={c.id} style={{border:"1px solid rgba(212,168,71,0.12)"}}>
+                        <h3 style={S.h3}>{c.name.replace("Southern Sky ","")}</h3>
+                        <p style={{fontSize:13,color:"#4a5a75",marginBottom:10}}>{c.address}</p>
+                        <p style={{fontSize:12,color:"#3a7a3a",marginBottom:14}}>● Online · {c.screens} Screens</p>
+                        {Array.from({length:c.screens}).map((_,i)=>(
+                          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,
+                            padding:"5px 0",borderBottom:"1px solid #131328"}}>
+                            <span style={{color:"#6a7a95"}}>Screen {i+1}</span>
+                            <span style={{color:"#4a5a75"}}>96 seats</span>
+                          </div>
+                        ))}
+                        <Btn className="btn-outline" style={{...S.btnOutline,width:"100%",textAlign:"center",marginTop:14,padding:"8px",fontSize:11}}
+                          onClick={()=>notify(`Configuring ${c.name}`)}>Configure Screens</Btn>
+                      </Panel>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {adminTab==="reports"&&(
+                <div>
+                  <h2 style={S.h2}>Sales Reports</h2>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14,marginBottom:22}}>
+                    {[["Dubbo","$18,240","483 tickets","74%"],["Orange","$12,850","341 tickets","68%"],["Bathurst","$7,331","194 tickets","81%"]].map(([loc,rev,tix,occ])=>(
+                      <Panel key={loc}>
+                        <h3 style={{...S.h3,marginBottom:6}}>{loc}</h3>
+                        <div style={{fontSize:26,fontWeight:700,color:"#d4a847",fontFamily:"'Playfair Display',Georgia,serif"}}>{rev}</div>
+                        <div style={{fontSize:12,color:"#4a5a75"}}>{tix} · {occ} occupancy</div>
+                      </Panel>
+                    ))}
+                  </div>
+                  <Panel>
+                    <h3 style={S.h3}>Export</h3>
+                    <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                      {["Sales by Movie","By Location","Ticket Types","Daily Revenue"].map(r=>(
+                        <Btn key={r} className="btn-outline" style={{...S.btnOutline,padding:"7px 14px",fontSize:11}}
+                          onClick={()=>notify(`Exporting: ${r}`)}>⬇ {r}</Btn>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      // ── RENDER ──
+      return (
+        <div>
+          {toast && <Toast msg={toast.msg} type={toast.type}/>}
+          <Nav/>
+          <main style={{position:"relative",zIndex:1}}>
+            {view==="home"         && <HomeView/>}
+            {view==="movie"        && <MovieView/>}
+            {view==="seats"        && <SeatsView/>}
+            {view==="checkout"     && <CheckoutView/>}
+            {view==="confirmation" && <ConfirmationView/>}
+            {view==="admin"        && <AdminView/>}
+          </main>
+          {view!=="admin" && <Footer/>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
