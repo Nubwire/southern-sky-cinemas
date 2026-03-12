@@ -1,0 +1,7 @@
+movie_id,title,rating,runtime,genre,poster_url,description,release_type
+m001,Starfall,M,128,Sci-Fi / Thriller,https://example.com/posters/starfall.jpg,"When a dormant satellite network begins raining debris on Earth's southern hemisphere, a lone astrophysicist must race against time to avert catastrophe.",new_release
+m002,The Quiet Country,PG,105,Drama,https://example.com/posters/quiet-country.jpg,"A multigenerational story of an Australian farming family navigating drought, loss, and the unexpected grace that binds them to their land.",standard
+m003,Mirage Protocol,MA15+,142,Action / Espionage,https://example.com/posters/mirage.jpg,"A field operative goes off-grid when her own agency marks her for elimination. Trust no one. Question everything.",new_release
+m004,Luminara,G,92,Animation / Family,https://example.com/posters/luminara.jpg,"An enchanting animated tale of a young girl who discovers a hidden world of bioluminescent creatures beneath her grandmother's coastal farm.",standard
+m005,Dark Meridian,R18+,115,Horror,https://example.com/posters/dark-meridian.jpg,"A remote outback property. A family in crisis. Something ancient has been waiting beneath the red earth.",special_event
+m006,The Last Harbour,M,138,Romance / Drama,https://example.com/posters/last-harbour.jpg,"Two strangers stranded in a remote fishing village during a cyclone find something neither expected — a reason to stay.",standard
